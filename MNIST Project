@@ -1,0 +1,96 @@
+import torch
+import torch.nn as nn
+import torch.utils.data
+from torchvision import transforms, datasets
+import torch.nn.functional as f
+import numpy as np
+import pandas as pd
+
+# Input the data(in .csv form)
+
+train_data = pd.read_csv("train.csv")
+test_data = pd.read_csv("test.csv")
+X_t = test_data.values
+Y = train_data['label'].values
+X = train_data.drop(['label'], 1).values
+
+# Converting csv into usable form
+
+X_train = torch.from_numpy(X).type(torch.LongTensor)
+X_train = X_train.view(-1, 1, 28, 28).float()
+Y_train = torch.from_numpy(Y).type(torch.LongTensor)
+
+X_test = torch.from_numpy(X_t).type(torch.LongTensor)
+X_test = X_test.view(-1, 1, 28, 28).float()
+
+train = torch.utils.data.TensorDataset(X_train, Y_train)
+train_loader = torch.utils.data.DataLoader(train, batch_size=100, shuffle=True)
+
+test = torch.utils.data.TensorDataset(X_test)
+test_loader = torch.utils.data.DataLoader(test, batch_size=100, shuffle=False)
+
+# Hyperparameters:
+epochs = 5
+classes = 10
+batch_size = 100
+learning_rate = 0.0001
+
+# Creating the model
+
+class ConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNet, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=5, stride=1, padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.drop_out = nn.Dropout()
+        self.fc1 = nn.Linear(7 * 7 * 64, 1000)
+        self.fc2 = nn.Linear(1000, 10)
+
+    def forward(self, x):
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = out.reshape(out.size(0), -1)
+        out = self.drop_out(out)
+        out = self.fc1(out)
+        out = self.fc2(out)
+        return out
+
+
+model = ConvNet()
+
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+# Training the model
+loss_list = []
+acc_list = []
+for epoch in range(epochs):
+    for i, (images, labels) in enumerate(train_loader):
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss_list.append(loss.item())
+
+# Backprop and perform Adam optimisation
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+#  Track the accuracy
+        total = labels.size(0)
+        _, predicted = torch.max(outputs.data, 1)
+        correct = (predicted == labels).sum().item()
+        acc_list.append(correct / total)
+
+        if (i + 1) % 100 == 0:
+            print('Epoch {}, Step [{}], Loss: {:.4f}, Accuracy: {:.1f}%'
+                  .format(epoch + 1, i + 1, loss.item(),
+                          (correct / total) * 100))
+
+print("End of learning")
+# Program end...
