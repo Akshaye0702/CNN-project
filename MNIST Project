@@ -93,4 +93,21 @@ for epoch in range(epochs):
                           (correct / total) * 100))
 
 print("End of learning")
-# Program end...
+
+# Start testing
+label_tensor = []
+
+for i, [images] in enumerate(test_loader):
+    outputs = model(images)
+    _, predicted = torch.max(outputs.data, 1)
+    label_tensor.append(torch.Tensor.tolist(predicted))
+
+labels = []
+for i in label_tensor:
+    for j in i:
+        labels.append(j)
+        
+print(len(labels))
+print(labels)
+
+# Program completed..:)
